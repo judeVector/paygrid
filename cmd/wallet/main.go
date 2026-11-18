@@ -30,16 +30,22 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	errCh := make(chan error, 1)
+
 	go func() {
 		logger.Info("wallet service listening", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Error("server failed", "err", err)
-			os.Exit(1)
+			errCh <- err
 		}
 	}()
 
-	<-ctx.Done()
-	logger.Info("shutting down gracefully")
+	select {
+	case err := <-errCh:
+		logger.Error("server failed", "err", err)
+		return
+	case <-ctx.Done():
+		logger.Info("shutting down gracefully")
+	}
 
 	shutDownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
