@@ -17,7 +17,7 @@ DB_PORT     ?= 5432
 DATABASE_URL ?= postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/$(DB)?sslmode=disable
 MIGRATIONS_PATH ?= ./db/$(DB)/migrations
 
-.PHONY: migrate-up migrate-down migrate-down-n migrate-force migrate-version migrate-create
+.PHONY: migrate-up migrate-down migrate-down-n migrate-force migrate-version migrate-create generate-test test
 
 ## Apply all pending migrations (usage: make migrate-up DB=wallet)
 migrate-up:
@@ -29,7 +29,7 @@ migrate-down:
 
 ## Rollback N migrations (usage: make migrate-down-n DB=wallet N=1)
 migrate-down-n:
-	@test -n "$(N)" || (echo "usage: make migrate-down-n DB=db_name N=1" && exit 1)
+	@test -n "$(N)" || (echo "usage: make migrate-down-n DB=db_name N=1" && exit `1)
 	migrate -path $(MIGRATIONS_PATH) -database "$(DATABASE_URL)" down $(N)
 
 ## Force set migration version (usage: make migrate-force DB=transfer VERSION=1)
@@ -45,3 +45,12 @@ migrate-version:
 migrate-create:
 	@test -n "$(NAME)" || (echo "usage: make migrate-create DB=db_name NAME=add_something" && exit 1)
 	migrate create -ext sql -dir $(MIGRATIONS_PATH) -seq $(NAME)
+
+
+generate-test:
+	@sqlc generate
+
+WALLET_TEST_DATABASE_URL ?= postgresql://$(DB_USER):$(DB_PASSWORD)@$(DB_HOST):$(DB_PORT)/wallet?sslmode=disable
+
+test:
+	WALLET_TEST_DATABASE_URL="$(WALLET_TEST_DATABASE_URL)" go test -count=1 $(TESTFLAGS) ./...
